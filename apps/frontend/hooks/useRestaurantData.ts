@@ -4,6 +4,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { apiClient, Restaurant, RestaurantMenu, MarketAnalysis, MenuItem } from '../lib/api-client';
+import { FEATURES } from '../lib/config';
 
 export interface UseRestaurantsResult {
   restaurants: Restaurant[];
@@ -401,8 +402,12 @@ export function useLocationBasedRestaurants() {
           last_search: new Date().toISOString()
         });
       } else {
-        console.warn('⚠️ No restaurants found, using demo data');
-        setRestaurants(getDemoRestaurants(lat, lng));
+        if (FEATURES.ENABLE_REAL_DATA) {
+          setRestaurants(response.data || []);
+        } else {
+          console.warn('⚠️ No restaurants found, using demo data');
+          setRestaurants(getDemoRestaurants(lat, lng));
+        }
       }
     } catch (err) {
       console.error('❌ Error fetching restaurants:', err);
@@ -513,7 +518,11 @@ export function useLocationBasedRestaurants() {
             last_search: new Date().toISOString()
           });
         } else {
-          setRestaurants(getDemoRestaurants(lat, lng));
+          if (FEATURES.ENABLE_REAL_DATA) {
+            setRestaurants(fallbackResponse.data || []);
+          } else {
+            setRestaurants(getDemoRestaurants(lat, lng));
+          }
         }
       } catch (fallbackErr) {
         console.error('Fallback search also failed:', fallbackErr);
@@ -566,7 +575,11 @@ export function useLocationBasedRestaurants() {
             last_search: new Date().toISOString()
           });
         } else {
-          setRestaurants(getDemoRestaurants(lat, lng));
+          if (FEATURES.ENABLE_REAL_DATA) {
+            setRestaurants(fallbackResponse.data || []);
+          } else {
+            setRestaurants(getDemoRestaurants(lat, lng));
+          }
         }
       } catch (fallbackErr) {
         console.error('Fallback search also failed:', fallbackErr);
