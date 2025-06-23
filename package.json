@@ -1,0 +1,54 @@
+{
+  "name": "beta-bitebase-intelligence",
+  "private": true,
+  "description": "BiteBase Intelligence - Unified monorepo for frontend and backend applications",
+  "scripts": {
+    "build": "echo \"Building all packages\"",
+    "dev": "cd apps/frontend && npm run dev",
+    "dev:frontend": "cd apps/frontend && npm run dev",
+    "dev:backend": "cd apps/backend && npm run dev",
+    "dev:all": "echo \"Running all apps in parallel is not supported yet\"",
+    "start": "cd apps/frontend && npm run start",
+    "start:frontend": "cd apps/frontend && npm run start",
+    "start:backend": "cd apps/backend && npm run start",
+    "start:all": "echo \"Running all apps in parallel is not supported yet\"",
+    "staging": "cd apps/frontend && npm run staging",
+    "staging:frontend": "cd apps/frontend && npm run staging",
+    "staging:backend": "cd apps/backend && npm run staging",
+    "staging:all": "echo \"Running all apps in parallel is not supported yet\"",
+    "lint": "cd apps/frontend && npm run lint",
+    "format": "prettier --write \"**/*.{ts,tsx,js,jsx,md,json}\"",
+    "check-types": "cd apps/frontend && npm run check-types",
+    "test": "echo \"No tests configured yet\"",
+    "clean": "rm -rf node_modules",
+    "setup": "npm install && npm run build",
+    "install:all": "npm install",
+    "clean:all": "npm run clean && rm -rf node_modules package-lock.json"
+  },
+  "devDependencies": {
+    "prettier": "^3.3.3"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/khiwniti/bitebase-intelligence.git"
+  },
+  "keywords": [
+    "monorepo",
+    "bitebase",
+    "restaurant",
+    "geospatial",
+    "saas"
+  ],
+  "author": "BiteBase Team",
+  "license": "MIT",
+  "dependencies": {
+    "mapbox-gl": "^3.12.0"
+  }
+}
