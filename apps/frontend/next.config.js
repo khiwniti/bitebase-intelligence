@@ -89,6 +89,9 @@ const nextConfig = {
     "@firebase/app",
     "@firebase/firestore",
   ],
+  
+  // Disable SWC minifier to avoid native module loading issues
+  swcMinify: false
 };
 
 module.exports = withNextIntl(nextConfig);
