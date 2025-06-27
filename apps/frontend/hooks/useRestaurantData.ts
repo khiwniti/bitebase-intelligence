@@ -364,6 +364,48 @@ export function useLocationBasedRestaurants() {
   const [searchMetrics, setSearchMetrics] = useState<any>(null);
   const [sessionId] = useState(() => `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`);
 
+  // Fetch restaurants from Foursquare
+  const fetchRestaurantsFromFoursquare = useCallback(async (lat: number, lng: number, radius: number = 5) => {
+    setLoading(true);
+    setError(null);
+
+    try {
+      console.log(`🔍 Fetching restaurants from Foursquare near: ${lat}, ${lng} within ${radius}km`);
+      
+      const response = await apiClient.searchFoursquareRestaurants({
+        latitude: lat,
+        longitude: lng,
+        radius: radius * 1000, // Convert to meters
+        limit: 20
+      });
+      
+      if (response.data && response.data.restaurants && response.data.restaurants.length > 0) {
+        console.log(`✅ Found ${response.data.restaurants.length} restaurants from Foursquare API`);
+        setRestaurants(response.data.restaurants);
+        
+        // Update search metrics
+        setSearchMetrics({
+          search_radius: radius,
+          results_count: response.data.restaurants.length,
+          data_source: 'foursquare_api',
+          last_search: new Date().toISOString()
+        });
+        
+        setLoading(false);
+        return;
+      }
+      
+      // If Foursquare fails, fall back to regular search
+      console.log('⚠️ No restaurants found from Foursquare, falling back to regular search');
+      fetchNearbyRestaurants(lat, lng, radius);
+      
+    } catch (err) {
+      console.error('❌ Error fetching from Foursquare:', err);
+      // Fall back to regular search
+      fetchNearbyRestaurants(lat, lng, radius);
+    }
+  }, []);
+
   // Enhanced location tracking with real-time updates
   const getCurrentLocation = useCallback((options?: {
     enableHighAccuracy?: boolean;
@@ -424,49 +466,7 @@ export function useLocationBasedRestaurants() {
       },
       defaultOptions
     );
-  }, [searchRadius, autoAdjustRadius]);
-
-  // Fetch restaurants from Foursquare
-  const fetchRestaurantsFromFoursquare = useCallback(async (lat: number, lng: number, radius: number = 5) => {
-    setLoading(true);
-    setError(null);
-
-    try {
-      console.log(`🔍 Fetching restaurants from Foursquare near: ${lat}, ${lng} within ${radius}km`);
-      
-      const response = await apiClient.searchFoursquareRestaurants({
-        latitude: lat,
-        longitude: lng,
-        radius: radius * 1000, // Convert to meters
-        limit: 20
-      });
-      
-      if (response.data && response.data.restaurants && response.data.restaurants.length > 0) {
-        console.log(`✅ Found ${response.data.restaurants.length} restaurants from Foursquare API`);
-        setRestaurants(response.data.restaurants);
-        
-        // Update search metrics
-        setSearchMetrics({
-          search_radius: radius,
-          results_count: response.data.restaurants.length,
-          data_source: 'foursquare_api',
-          last_search: new Date().toISOString()
-        });
-        
-        setLoading(false);
-        return;
-      }
-      
-      // If Foursquare fails, fall back to regular search
-      console.log('⚠️ No restaurants found from Foursquare, falling back to regular search');
-      fetchNearbyRestaurants(lat, lng, radius);
-      
-    } catch (err) {
-      console.error('❌ Error fetching from Foursquare:', err);
-      // Fall back to regular search
-      fetchNearbyRestaurants(lat, lng, radius);
-    }
-  }, []);
+  }, [searchRadius, autoAdjustRadius, fetchRestaurantsFromFoursquare]);
 
   // Fetch nearby restaurants using real data endpoint
   const fetchNearbyRestaurants = useCallback(async (lat: number, lng: number, radius: number = 5) => {
@@ -692,7 +692,7 @@ export function useLocationBasedRestaurants() {
         longitude: lng,
         radius: radius,
         buffer_radius: bufferRadius,
-        platforms: ['wongnai', 'google'],
+        platforms: ['foursquare', 'wongnai', 'google'],
         limit: 20,
         real_time: true
       });

@@ -149,13 +149,6 @@ export default function RestaurantMap({
     }
   };
 
-  // Auto-request location on component mount
-  useEffect(() => {
-    if (locationPermission === 'unknown') {
-      requestLocation();
-    }
-  }, [locationPermission]);
-
   // Fallback to simple map if no Mapbox token
   const renderSimpleMap = () => {
     if (!userLocation) return null;
