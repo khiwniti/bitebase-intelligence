@@ -92,7 +92,7 @@ export interface MarketAnalysis {
   created_at: string;
 }
 
-import { API_CONFIG, ENDPOINTS, DEFAULT_HEADERS, DEBUG } from './config';
+import { API_CONFIG, ENDPOINTS, DEFAULT_HEADERS, DEBUG, FOURSQUARE_CONFIG } from './config';
 
 class ApiClient {
   private baseUrl: string;
@@ -230,6 +230,26 @@ class ApiClient {
       data: response.data || [],
       status: response.status,
     };
+  }
+
+  // Foursquare integration endpoints
+  async searchFoursquareRestaurants(params: {
+    latitude: number;
+    longitude: number;
+    radius?: number;
+    query?: string;
+    limit?: number;
+  }): Promise<ApiResponse<{ restaurants: Restaurant[]; total: number }>> {
+    return this.request('/restaurants/foursquare/search', {
+      method: 'POST',
+      body: JSON.stringify({
+        ...params,
+        client_id: FOURSQUARE_CONFIG.CLIENT_ID,
+        client_secret: FOURSQUARE_CONFIG.CLIENT_SECRET,
+        api_key: FOURSQUARE_CONFIG.API_KEY,
+        v: FOURSQUARE_CONFIG.VERSION,
+      }),
+    });
   }
 
   // Wongnai integration endpoints
@@ -482,7 +502,7 @@ class ApiClient {
         latitude: params.latitude,
         longitude: params.longitude,
         radius: params.radius || 5,
-        platforms: params.platforms || ['wongnai', 'google']
+        platforms: params.platforms || ['foursquare', 'wongnai', 'google']
       }),
     });
   }

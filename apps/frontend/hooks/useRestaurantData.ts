@@ -4,7 +4,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { apiClient, Restaurant, RestaurantMenu, MarketAnalysis, MenuItem } from '../lib/api-client';
-import { FEATURES } from '../lib/config';
+import { FEATURES, FOURSQUARE_CONFIG } from '../lib/config';
 
 export interface UseRestaurantsResult {
   restaurants: Restaurant[];
@@ -84,6 +84,22 @@ export function useRestaurantSearch() {
     setError(null);
     
     try {
+      // First try to get restaurants from Foursquare
+      const foursquareResponse = await apiClient.searchFoursquareRestaurants({
+        latitude,
+        longitude,
+        radius,
+        limit: 20
+      });
+      
+      if (foursquareResponse.data && foursquareResponse.data.restaurants && foursquareResponse.data.restaurants.length > 0) {
+        console.log('✅ Found restaurants from Foursquare:', foursquareResponse.data.restaurants.length);
+        setRestaurants(foursquareResponse.data.restaurants);
+        setLoading(false);
+        return;
+      }
+      
+      // If Foursquare fails, fall back to regular search
       const response = await apiClient.searchRestaurantsByLocation(latitude, longitude, radius);
       if (response.error) {
         setError(response.error);
@@ -110,9 +126,27 @@ export function useRestaurantSearch() {
     setError(null);
 
     try {
+      // First try Foursquare if we have coordinates
+      if (params.latitude && params.longitude) {
+        const foursquareResponse = await apiClient.searchFoursquareRestaurants({
+          latitude: params.latitude,
+          longitude: params.longitude,
+          query: params.query,
+          limit: params.limit || 20
+        });
+        
+        if (foursquareResponse.data && foursquareResponse.data.restaurants && foursquareResponse.data.restaurants.length > 0) {
+          console.log('✅ Found restaurants from Foursquare:', foursquareResponse.data.restaurants.length);
+          setRestaurants(foursquareResponse.data.restaurants);
+          setLoading(false);
+          return;
+        }
+      }
+      
+      // Fall back to Wongnai search
       const response = await apiClient.searchWongnaiRestaurants({
-        latitude: params.latitude || 13.7563,
-        longitude: params.longitude || 100.5018,
+        latitude: params.latitude,
+        longitude: params.longitude,
         query: params.query,
         cuisine: params.cuisine,
         limit: params.limit || 10
@@ -271,6 +305,26 @@ export function useRealDataFetcher() {
     setError(null);
     
     try {
+      // First try Foursquare
+      const foursquareResponse = await apiClient.searchFoursquareRestaurants({
+        latitude: params.latitude,
+        longitude: params.longitude,
+        radius: params.radius,
+        limit: 20
+      });
+      
+      if (foursquareResponse.data && foursquareResponse.data.restaurants && foursquareResponse.data.restaurants.length > 0) {
+        console.log('✅ Found restaurants from Foursquare:', foursquareResponse.data.restaurants.length);
+        setLastResult({
+          status: 'success',
+          source: 'foursquare',
+          restaurants: foursquareResponse.data.restaurants,
+          total: foursquareResponse.data.restaurants.length
+        });
+        return foursquareResponse.data.restaurants;
+      }
+      
+      // Fall back to the regular API
       const response = await apiClient.fetchRealRestaurantData(params);
       if (response.error) {
         setError(response.error);
@@ -345,12 +399,8 @@ export function useLocationBasedRestaurants() {
           use_streaming: true
         });
 
-        // Fetch restaurants with enhanced search (fallback if streaming doesn't work)
-        if (autoAdjustRadius) {
-          fetchNearbyRestaurantsWithAutoRadius(location.lat, location.lng);
-        } else {
-          fetchNearbyRestaurants(location.lat, location.lng, searchRadius);
-        }
+        // Try Foursquare first
+        fetchRestaurantsFromFoursquare(location.lat, location.lng, searchRadius);
       },
       (error) => {
         // Better error handling for geolocation
@@ -369,15 +419,54 @@ export function useLocationBasedRestaurants() {
         const bangkokCenter = { lat: 13.7563, lng: 100.5018 };
         setUserLocation(bangkokCenter);
 
-        if (autoAdjustRadius) {
-          fetchNearbyRestaurantsWithAutoRadius(bangkokCenter.lat, bangkokCenter.lng);
-        } else {
-          fetchNearbyRestaurants(bangkokCenter.lat, bangkokCenter.lng, searchRadius);
-        }
+        // Try Foursquare with default location
+        fetchRestaurantsFromFoursquare(bangkokCenter.lat, bangkokCenter.lng, searchRadius);
       },
       defaultOptions
     );
   }, [searchRadius, autoAdjustRadius]);
+
+  // Fetch restaurants from Foursquare
+  const fetchRestaurantsFromFoursquare = useCallback(async (lat: number, lng: number, radius: number = 5) => {
+    setLoading(true);
+    setError(null);
+
+    try {
+      console.log(`🔍 Fetching restaurants from Foursquare near: ${lat}, ${lng} within ${radius}km`);
+      
+      const response = await apiClient.searchFoursquareRestaurants({
+        latitude: lat,
+        longitude: lng,
+        radius: radius * 1000, // Convert to meters
+        limit: 20
+      });
+      
+      if (response.data && response.data.restaurants && response.data.restaurants.length > 0) {
+        console.log(`✅ Found ${response.data.restaurants.length} restaurants from Foursquare API`);
+        setRestaurants(response.data.restaurants);
+        
+        // Update search metrics
+        setSearchMetrics({
+          search_radius: radius,
+          results_count: response.data.restaurants.length,
+          data_source: 'foursquare_api',
+          last_search: new Date().toISOString()
+        });
+        
+        setLoading(false);
+        return;
+      }
+      
+      // If Foursquare fails, fall back to regular search
+      console.log('⚠️ No restaurants found from Foursquare, falling back to regular search');
+      fetchNearbyRestaurants(lat, lng, radius);
+      
+    } catch (err) {
+      console.error('❌ Error fetching from Foursquare:', err);
+      // Fall back to regular search
+      fetchNearbyRestaurants(lat, lng, radius);
+    }
+  }, []);
 
   // Fetch nearby restaurants using real data endpoint
   const fetchNearbyRestaurants = useCallback(async (lat: number, lng: number, radius: number = 5) => {
@@ -391,14 +480,14 @@ export function useLocationBasedRestaurants() {
       const response = await apiClient.searchRestaurantsByLocation(lat, lng, radius);
 
       if (response.data && response.data.length > 0) {
-        console.log(`✅ Found ${response.data.length} real restaurants from Foursquare API`);
+        console.log(`✅ Found ${response.data.length} real restaurants`);
         setRestaurants(response.data);
 
         // Update search metrics
         setSearchMetrics({
           search_radius: radius,
           results_count: response.data.length,
-          data_source: 'foursquare_api',
+          data_source: 'api_search',
           last_search: new Date().toISOString()
         });
       } else {
@@ -461,6 +550,8 @@ export function useLocationBasedRestaurants() {
           console.log(`📍 Location streamed with ${streamResponse.data.restaurants?.length || 0} nearby restaurants`);
         } else if (streamResponse.error) {
           console.warn('Location streaming failed:', streamResponse.error);
+          // Fall back to Foursquare
+          fetchRestaurantsFromFoursquare(coords.latitude, coords.longitude, options.search_radius || searchRadius);
         }
       } else {
         // Use regular location update
@@ -468,12 +559,17 @@ export function useLocationBasedRestaurants() {
 
         if (response.data?.nearby_restaurants) {
           setRestaurants(response.data.nearby_restaurants);
+        } else {
+          // Fall back to Foursquare
+          fetchRestaurantsFromFoursquare(coords.latitude, coords.longitude, options?.search_radius || searchRadius);
         }
       }
     } catch (error) {
       console.warn('Failed to update location on backend:', error);
+      // Fall back to Foursquare
+      fetchRestaurantsFromFoursquare(coords.latitude, coords.longitude, options?.search_radius || searchRadius);
     }
-  }, [sessionId, searchRadius]);
+  }, [sessionId, searchRadius, fetchRestaurantsFromFoursquare]);
 
   // Enhanced fetch with auto-radius adjustment and buffer zones
   const fetchNearbyRestaurantsWithAutoRadius = useCallback(async (lat: number, lng: number) => {
@@ -481,7 +577,32 @@ export function useLocationBasedRestaurants() {
     setError(null);
 
     try {
-      // Try the realtime search endpoint first
+      // Try Foursquare first
+      const foursquareResponse = await apiClient.searchFoursquareRestaurants({
+        latitude: lat,
+        longitude: lng,
+        radius: 5000, // 5km in meters
+        limit: 20
+      });
+      
+      if (foursquareResponse.data && foursquareResponse.data.restaurants && foursquareResponse.data.restaurants.length > 0) {
+        console.log(`✅ Found ${foursquareResponse.data.restaurants.length} restaurants from Foursquare API`);
+        setRestaurants(foursquareResponse.data.restaurants);
+        
+        // Update search metrics
+        setSearchMetrics({
+          search_radius: 5,
+          results_count: foursquareResponse.data.restaurants.length,
+          data_source: 'foursquare_api',
+          last_search: new Date().toISOString()
+        });
+        
+        setLoading(false);
+        return;
+      }
+      
+      // If Foursquare fails, try the realtime search endpoint
+      console.log('⚠️ No restaurants found from Foursquare, trying realtime search...');
       const response = await apiClient.searchRestaurantsRealtime({
         latitude: lat,
         longitude: lng,
@@ -540,7 +661,32 @@ export function useLocationBasedRestaurants() {
     setError(null);
 
     try {
-      // Try the buffer search endpoint first
+      // Try Foursquare first
+      const foursquareResponse = await apiClient.searchFoursquareRestaurants({
+        latitude: lat,
+        longitude: lng,
+        radius: radius * 1000, // Convert to meters
+        limit: 20
+      });
+      
+      if (foursquareResponse.data && foursquareResponse.data.restaurants && foursquareResponse.data.restaurants.length > 0) {
+        console.log(`✅ Found ${foursquareResponse.data.restaurants.length} restaurants from Foursquare API`);
+        setRestaurants(foursquareResponse.data.restaurants);
+        
+        // Update search metrics
+        setSearchMetrics({
+          search_radius: radius,
+          results_count: foursquareResponse.data.restaurants.length,
+          data_source: 'foursquare_api',
+          last_search: new Date().toISOString()
+        });
+        
+        setLoading(false);
+        return;
+      }
+      
+      // If Foursquare fails, try the buffer search endpoint
+      console.log('⚠️ No restaurants found from Foursquare, trying buffer search...');
       const response = await apiClient.getNearbyRestaurantsWithBuffer({
         latitude: lat,
         longitude: lng,
@@ -666,7 +812,8 @@ export function useLocationBasedRestaurants() {
     setSearchRadius,
     setBufferRadius,
     setAutoAdjustRadius,
-    updateUserLocationOnBackend
+    updateUserLocationOnBackend,
+    fetchRestaurantsFromFoursquare
   };
 }
 

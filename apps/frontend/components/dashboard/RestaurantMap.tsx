@@ -156,8 +156,6 @@ export default function RestaurantMap({
     }
   }, [locationPermission]);
 
-  // Using MAPBOX_TOKEN from mapbox utility
-
   // Fallback to simple map if no Mapbox token
   const renderSimpleMap = () => {
     if (!userLocation) return null;
