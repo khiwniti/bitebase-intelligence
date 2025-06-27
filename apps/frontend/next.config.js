@@ -1,6 +1,6 @@
 const createNextIntlPlugin = require('next-intl/plugin');
 
-const withNextIntl = createNextIntlPlugin();
+const withNextIntl = createNextIntlPlugin('./i18n/request.ts');
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
@@ -88,10 +88,7 @@ const nextConfig = {
     "@firebase/auth",
     "@firebase/app",
     "@firebase/firestore",
-  ],
-  
-  // Disable SWC minifier to avoid native module loading issues
-  swcMinify: false
+  ]
 };
 
 module.exports = withNextIntl(nextConfig);
