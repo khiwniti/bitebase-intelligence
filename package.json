@@ -3,31 +3,10 @@
   "private": true,
   "description": "BiteBase Intelligence - Unified monorepo for frontend and backend applications",
   "scripts": {
-    "build": "bash -c \"turbo run build\"",
-    "dev": "bash -c \"turbo run dev\"",
-    "dev:frontend": "bash -c \"turbo run dev --filter=bitebase-frontend\"",
-    "dev:backend": "bash -c \"turbo run dev --filter=bitebase-backend\"",
-    "dev:all": "bash -c \"turbo run dev --parallel\"",
-    "start": "bash -c \"turbo run start\"",
-    "start:frontend": "bash -c \"turbo run start --filter=bitebase-frontend\"",
-    "start:backend": "bash -c \"turbo run start --filter=bitebase-backend\"",
-    "start:all": "bash -c \"turbo run start --parallel\"",
-    "staging": "bash -c \"turbo run staging\"",
-    "staging:frontend": "bash -c \"turbo run staging --filter=bitebase-frontend\"",
-    "staging:backend": "bash -c \"turbo run staging --filter=bitebase-backend\"",
-    "staging:all": "bash -c \"turbo run staging --parallel\"",
-    "lint": "bash -c \"turbo run lint\"",
-    "format": "prettier --write \"**/*.{ts,tsx,js,jsx,md,json}\"",
-    "check-types": "bash -c \"turbo run check-types\"",
-    "test": "bash -c \"turbo run test\"",
-    "clean": "bash -c \"turbo run clean\"",
-    "setup": "yarn install && yarn build",
-    "install:all": "yarn install",
-    "clean:all": "yarn clean && rm -rf node_modules yarn.lock"
+
   },
   "devDependencies": {
-    "prettier": "^3.3.3",
-    "turbo": "^2.5.1"
+    "prettier": "^3.3.3"
   },
   "engines": {
     "node": ">=18"
@@ -42,13 +21,11 @@
   },
   "keywords": [
     "monorepo",
-    "turborepo",
     "bitebase",
     "restaurant",
     "geospatial",
     "saas"
   ],
-  "packageManager": "yarn@1.22.22",
   "author": "BiteBase Team",
   "license": "MIT",
   "dependencies": {

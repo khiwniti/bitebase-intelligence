@@ -6,7 +6,7 @@ const withNextIntl = createNextIntlPlugin('./i18n/request.ts');
 const nextConfig = {
   reactStrictMode: false,
   distDir: ".next",
-  trailingSlash: true,
+  trailingSlash: false,
   output: 'standalone',
   images: {
     unoptimized: true,
@@ -88,7 +88,7 @@ const nextConfig = {
     "@firebase/auth",
     "@firebase/app",
     "@firebase/firestore",
-  ],
+  ]
 };
 
 module.exports = withNextIntl(nextConfig);

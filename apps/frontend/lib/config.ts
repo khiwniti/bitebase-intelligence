@@ -57,6 +57,7 @@ export const ENDPOINTS = {
     REAL_TIME_SEARCH: '/restaurants/search/realtime',
     WONGNAI_SEARCH: '/restaurants/wongnai/search',
     FETCH_REAL_DATA: '/restaurants/fetch-real-data',
+    FOURSQUARE_SEARCH: '/restaurants/foursquare/search',
   },
   
   // Location endpoints
@@ -92,6 +93,12 @@ export const ENDPOINTS = {
   DATABASE: {
     INIT: '/init-database',
   },
+  
+  // Foursquare
+  FOURSQUARE: {
+    SEARCH: '/foursquare/search',
+    DETAILS: (id: string) => `/foursquare/venues/${id}`,
+  },
 }
 
 // Default request headers
@@ -126,6 +133,17 @@ export const DEBUG = {
   LOG_MAP_EVENTS: isDevelopment,
 }
 
+// Foursquare API Configuration
+export const FOURSQUARE_CONFIG = {
+  CLIENT_ID: 'UFEXNGODOGBQRX35NGIP0ZU0XDT2GJMIV0LGNGBMLU5RBVAN',
+  CLIENT_SECRET: 'W4LHPBI1PVAKU4BLVQJ1YA2XNPZGVNNV44LCBQNRKJZHYDNZ',
+  API_KEY: 'fsq3Ciis2M5OLrAUQqL2V5z+bsUMKpCCdQe1ULDMN23ISSo=',
+  VERSION: '20250617',
+  RADIUS: 5000, // 5km in meters
+  LIMIT: 20,
+  CATEGORY_ID: '13000', // Food category
+}
+
 export default {
   API_CONFIG,
   MAP_CONFIG,
@@ -135,4 +153,5 @@ export default {
   LOCATION_CONFIG,
   ERROR_MESSAGES,
   DEBUG,
+  FOURSQUARE_CONFIG,
 }
