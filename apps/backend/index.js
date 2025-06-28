@@ -1,17 +1,27 @@
 const express = require('express');
 const cors = require('cors');
-require('dotenv').config();
+require('dotenv').config({ path: '.env.development' });
 const mapboxSdk = require('@mapbox/mapbox-sdk');
-const { MAPBOX_API_KEY } = process.env;
+const MAPBOX_API_KEY = process.env.MAPBOX_API_KEY;
+const { Pool } = require('pg');
+const crypto = require('crypto');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
+
+// Database connection
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  ssl: process.env.NODE_ENV === 'production' ? {
+    rejectUnauthorized: false
+  } : false
+});
 
 // Middleware
 app.use(cors({
   origin: process.env.NODE_ENV === 'production' 
     ? ['https://beta.bitebase.app', 'https://bitebase.app', 'https://www.bitebase.app']
-    : ['http://localhost:12000', 'http://localhost:12001', 'http://localhost:3000'],
+    : ['http://localhost:12000', 'http://localhost:12001', 'http://localhost:3000', 'http://localhost:12000'],
   credentials: true
 }));
 
@@ -25,16 +35,31 @@ app.use((req, res, next) => {
 });
 
 // Initialize Mapbox client
-const mapboxClient = mapboxSdk({ accessToken: MAPBOX_API_KEY });
+let mapboxClient;
+if (process.env.MAPBOX_API_KEY) {
+  mapboxClient = mapboxSdk({ accessToken: process.env.MAPBOX_API_KEY });
+} else {
+  console.error('❌ MAPBOX_API_KEY is not defined. Mapbox functionality will be disabled.');
+}
 
 // Health check endpoint
 app.get('/health', async (req, res) => {
   try {
+    const result = await pool.query('SELECT NOW()');
+    console.log('✅ Database connected successfully:', result.rows[0]);
+    
     res.status(200).json({
       status: 'healthy',
       timestamp: new Date().toISOString(),
+      service: 'bitebase-backend-express',
+      version: "1.0.0",
       environment: process.env.NODE_ENV || 'development',
-      port: PORT,
+      database: {
+        connected: true,
+        type: 'postgresql',
+        provider: 'neon',
+        timestamp: result.rows[0].now
+      },
       services: {
         api: true,
         database: true,
@@ -48,8 +73,12 @@ app.get('/health', async (req, res) => {
     res.status(500).json({
       status: 'unhealthy',
       timestamp: new Date().toISOString(),
-      environment: process.env.NODE_ENV || 'development',
-      error: 'Health check failed'
+      service: 'bitebase-backend-express',
+      error: 'Database connection failed',
+      database: {
+        connected: false,
+        error: error.message
+      }
     });
   }
 });
@@ -103,10 +132,12 @@ function generateNearbyRestaurants(latitude, longitude, radius = 5, limit = 10) 
 
 // Foursquare API integration
 async function fetchFoursquareRestaurants(latitude, longitude, radius = 5, limit = 20) {
-  const foursquareApiKey = process.env.FOURSQUARE_API_KEY;
+  console.log(`🔑 FOURSQUARE_API: ${process.env.FOURSQUARE_API}`);
+  const foursquareApiKey = process.env.FOURSQUARE_API;
 
-  if (!foursquareApiKey || foursquareApiKey === 'YOUR_FOURSQUARE_API_KEY_HERE') {
+  if (!foursquareApiKey) {
     console.log('⚠️ Foursquare API key not configured, using mock data');
+    console.log('FOURSQUARE_API is undefined');
     return null;
   }
 
@@ -114,6 +145,7 @@ async function fetchFoursquareRestaurants(latitude, longitude, radius = 5, limit
     const foursquareUrl = `https://api.foursquare.com/v3/places/search?ll=${latitude},${longitude}&radius=${radius * 1000}&categories=13000&limit=${limit}&sort=DISTANCE`;
 
     console.log(`🔑 Using Foursquare API with key: ${foursquareApiKey.substring(0, 10)}...`);
+    console.log(`🔗 Foursquare API URL: ${foursquareUrl}`);
 
     const foursquareResponse = await fetch(foursquareUrl, {
       headers: {
@@ -121,8 +153,11 @@ async function fetchFoursquareRestaurants(latitude, longitude, radius = 5, limit
         'Accept': 'application/json'
       }
     });
+    console.log(`🔑 Authorization header: ${foursquareApiKey}`);
 
     if (foursquareResponse.ok) {
+      console.log(`✅ Foursquare API URL: ${foursquareUrl}`);
+      console.log(`✅ Foursquare API response status: ${foursquareResponse.status}`);
       const foursquareData = await foursquareResponse.json();
       console.log(`✅ Foursquare API response received:`, {
         resultCount: foursquareData.results?.length || 0,
@@ -167,7 +202,8 @@ async function fetchFoursquareRestaurants(latitude, longitude, radius = 5, limit
       }
     } else {
       const errorText = await foursquareResponse.text();
-      console.warn(`⚠️ Foursquare API request failed with status: ${foursquareResponse.status}, error: ${errorText}`);
+      console.warn(`⚠️ Foursquare API request failed with status: ${foursquareResponse.status}, error: ${errorText}, url: ${foursquareUrl}, headers: ${JSON.stringify(foursquareResponse.headers.raw())}`);
+      console.log(`Foursquare API error text: ${errorText}`);
       return null;
     }
   } catch (error) {
@@ -176,38 +212,10 @@ async function fetchFoursquareRestaurants(latitude, longitude, radius = 5, limit
   }
 }
 
-// Mock restaurant data generator
-function generateMockRestaurants(latitude = 13.7563, longitude = 100.5018, limit = 20) {
-  const cuisines = ['Thai', 'Italian', 'Japanese', 'Chinese', 'American', 'French', 'Indian', 'Mexican'];
-  const restaurants = [];
-
-  for (let i = 0; i < limit; i++) {
-    const randomLat = latitude + (Math.random() - 0.5) * 0.02;
-    const randomLng = longitude + (Math.random() - 0.5) * 0.02;
-    
-    restaurants.push({
-      id: `mock_${i + 1}`,
-      name: `Restaurant ${i + 1}`,
-      cuisine_type: cuisines[Math.floor(Math.random() * cuisines.length)],
-      rating: (3.5 + Math.random() * 1.5).toFixed(1),
-      review_count: Math.floor(Math.random() * 500) + 10,
-      price_range: Math.floor(Math.random() * 4) + 1,
-      latitude: randomLat,
-      longitude: randomLng,
-      address: `${i + 1} Mock Street, Bangkok`,
-      phone: `+66-2-${String(Math.floor(Math.random() * 900) + 100)}-${String(Math.floor(Math.random() * 9000) + 1000)}`,
-      website: `https://restaurant${i + 1}.example.com`,
-      hours: '11:00-22:00',
-      features: ['dine_in', 'takeout'],
-      distance: (Math.random() * 5).toFixed(2)
-    });
-  }
-
-  return restaurants;
-}
 
 // Restaurant search endpoint
 app.get('/restaurants/search', async (req, res) => {
+  console.log('🔑 /restaurants/search endpoint called');
   try {
     const {
       latitude,
@@ -238,24 +246,12 @@ app.get('/restaurants/search', async (req, res) => {
         10, // radius in km
         parseInt(limit) || 20
       );
-
-      if (foursquareRestaurants && foursquareRestaurants.length > 0) {
-        restaurants = foursquareRestaurants;
-        searchVia = 'foursquare_api';
-      }
+      restaurants = foursquareRestaurants || [];
+      searchVia = foursquareRestaurants && foursquareRestaurants.length > 0 ? 'foursquare_api' : 'no_results';
+    } else {
+      restaurants = [];
+      searchVia = 'no_coordinates';
     }
-
-    // Fallback to mock data if Foursquare fails or no coordinates
-    if (restaurants.length === 0) {
-      console.log('📝 Using mock restaurant data as fallback');
-      restaurants = generateMockRestaurants(
-        parseFloat(latitude) || 13.7563,
-        parseFloat(longitude) || 100.5018,
-        parseInt(limit) || 20
-      );
-      searchVia = 'mock_data';
-    }
-
     // Apply filters
     let filteredRestaurants = restaurants;
     
@@ -340,7 +336,7 @@ app.get('/restaurants/featured', async (req, res) => {
     console.log('🌟 Fetching featured restaurants');
     
     // Generate mock featured restaurants
-    const featuredRestaurants = generateMockRestaurants(
+    const featuredRestaurants = generateNearbyRestaurants(
       parseFloat(latitude) || 13.7563,
       parseFloat(longitude) || 100.5018,
       5  // Limit to 5 featured restaurants
@@ -399,7 +395,7 @@ app.get('/restaurants/:id', async (req, res) => {
       success: true,
       data: {
         restaurant,
-        similar_restaurants: generateMockRestaurants(13.7563, 100.5018, 3)
+        similar_restaurants: generateNearbyRestaurants(13.7563, 100.5018, 3)
       },
       meta: {
         timestamp: new Date().toISOString()

@@ -4,8 +4,8 @@
   "description": "BiteBase Express.js Backend API for Vercel",
   "main": "index.js",
   "scripts": {
-    "start": "NODE_ENV=production PORT=3001 node index.js",
-    "dev": "NODE_ENV=development PORT=3001 node index.js",
+    "start": "cross-env NODE_ENV=production PORT=3001 node index.js",
+    "dev": "cross-env NODE_ENV=development PORT=3001 node index.js",
     "staging": "NODE_ENV=staging PORT=3001 node index.js",
     "build": "echo 'Backend build complete'",
     "lint": "echo 'Backend lint complete'",

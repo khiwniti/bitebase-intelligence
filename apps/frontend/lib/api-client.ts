@@ -240,15 +240,20 @@ class ApiClient {
     query?: string;
     limit?: number;
   }): Promise<ApiResponse<{ restaurants: Restaurant[]; total: number }>> {
-    return this.request('/restaurants/foursquare/search', {
-      method: 'POST',
-      body: JSON.stringify({
-        ...params,
-        client_id: FOURSQUARE_CONFIG.CLIENT_ID,
-        client_secret: FOURSQUARE_CONFIG.CLIENT_SECRET,
-        api_key: FOURSQUARE_CONFIG.API_KEY,
-        v: FOURSQUARE_CONFIG.VERSION,
-      }),
+    const urlParams = new URLSearchParams();
+    urlParams.append('latitude', params.latitude.toString());
+    urlParams.append('longitude', params.longitude.toString());
+    if (params.radius) {
+      urlParams.append('radius', params.radius.toString());
+    }
+    if (params.query) {
+      urlParams.append('query', params.query);
+    }
+    if (params.limit) {
+      urlParams.append('limit', params.limit.toString());
+    }
+    return this.request(`/restaurants/search?${urlParams.toString()}`, {
+      method: 'GET',
     });
   }
 

@@ -3,9 +3,12 @@
   "private": true,
   "description": "BiteBase Intelligence - Unified monorepo for frontend and backend applications",
   "scripts": {
-
+    "dev": "yarn workspace bitebase-frontend dev & yarn workspace bitebase-backend dev",
+    "start:dev": "concurrently \"yarn --cwd apps/backend start\" \"yarn --cwd apps/frontend dev\""
   },
   "devDependencies": {
+    "concurrently": "^8.2.2",
+    "cross-env": "^7.0.3",
     "prettier": "^3.3.3"
   },
   "engines": {
@@ -30,5 +33,6 @@
   "license": "MIT",
   "dependencies": {
     "mapbox-gl": "^3.12.0"
-  }
+  },
+  "packageManager": "yarn@1.22.22+sha512.a6b2f7906b721bba3d67d4aff083df04dad64c399707841b7acf00f6b133b7ac24255f2652fa22ae3534329dc6180534e98d17432037ff6fd140556e2bb3137e"
 }
