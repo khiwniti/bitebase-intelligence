@@ -40,6 +40,7 @@ import ServiceHealthDashboard from "../../components/admin/ServiceHealthDashboar
 import { useRestaurants, useLocationBasedRestaurants } from "../../hooks/useRestaurantData"
 import RestaurantMap from "../../components/dashboard/RestaurantMap"
 import RealTimeLocationTracker from "../../components/location/RealTimeLocationTracker"
+import BusinessIntelligenceHub from "../../components/dashboard/BusinessIntelligenceHub"
 
 // Real-time metrics that will be fetched from API
 const getRealTimeMetrics = (restaurantCount: number, avgRating: number) => ({
@@ -351,9 +352,18 @@ export default function DashboardPage() {
           )}
         </div>
       </DashboardSection>
+
+      {/* Business Intelligence Hub */}
+      <DashboardSection
+        title="Business Intelligence Hub"
+        description="Deep dive into your restaurant's performance and market position"
+      >
+        <BusinessIntelligenceHub locationId={nearbyRestaurants.length > 0 ? nearbyRestaurants[0].id.toString() : undefined} />
+      </DashboardSection>
+
       {/* Real-Time Data Metrics */}
-      <DashboardSection 
-        title="Platform Intelligence Metrics" 
+      <DashboardSection
+        title="Platform Intelligence Metrics"
         description={`Real-time restaurant data analytics - ${apiStatus}`}
         actions={
           <Button variant="outline" size="sm" onClick={() => router.push('/reports')}>

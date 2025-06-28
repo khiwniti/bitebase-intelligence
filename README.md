@@ -42,7 +42,7 @@ yarn build
 ### Run All Applications
 ```bash
 # Development mode (both frontend and backend)
-yarn dev:all
+yarn dev
 
 # Staging mode (both frontend and backend)
 yarn staging:all

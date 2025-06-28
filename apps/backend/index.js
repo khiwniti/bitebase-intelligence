@@ -94,50 +94,15 @@ app.get('/ai', (req, res) => {
 });
 
 // Helper function to generate nearby restaurants for streaming
-function generateNearbyRestaurants(latitude, longitude, radius = 5, limit = 10) {
-  const restaurants = [];
-  const restaurantNames = [
-    'Bangkok Bistro', 'Thai Garden', 'Spice Route', 'Golden Dragon', 'Lotus Cafe',
-    'Mango Tree', 'Bamboo House', 'Silk Road', 'Royal Thai', 'Green Curry',
-    'Pad Thai Palace', 'Som Tam Station', 'Coconut Grove', 'Lemongrass', 'Chili House'
-  ];
-
-  const cuisines = ['Thai', 'Chinese', 'Japanese', 'Italian', 'Indian', 'Vietnamese', 'Korean'];
-
-  for (let i = 0; i < Math.min(limit, restaurantNames.length); i++) {
-    // Generate random coordinates within the radius
-    const randomLat = latitude + (Math.random() - 0.5) * (radius / 111); // Rough conversion
-    const randomLng = longitude + (Math.random() - 0.5) * (radius / 111);
-
-    restaurants.push({
-      id: `stream_${i + 1}`,
-      name: restaurantNames[i],
-      cuisine_type: cuisines[Math.floor(Math.random() * cuisines.length)],
-      rating: (3.5 + Math.random() * 1.5).toFixed(1),
-      review_count: Math.floor(Math.random() * 300) + 20,
-      price_range: Math.floor(Math.random() * 4) + 1,
-      latitude: randomLat,
-      longitude: randomLng,
-      distance: (Math.random() * radius).toFixed(2),
-      address: `${Math.floor(Math.random() * 999) + 1} Bangkok Street`,
-      phone: `+66-2-${Math.floor(Math.random() * 900) + 100}-${Math.floor(Math.random() * 9000) + 1000}`,
-      website: `https://www.${restaurantNames[i].toLowerCase().replace(/\s+/g, '')}.com`,
-      hours: '10:00-22:00',
-      features: ['dine_in', 'takeout']
-    });
-  }
-
-  return restaurants;
-}
 
 // Foursquare API integration
 async function fetchFoursquareRestaurants(latitude, longitude, radius = 5, limit = 20) {
-  console.log(`🔑 FOURSQUARE_API: ${process.env.FOURSQUARE_API}`);
-  const foursquareApiKey = process.env.FOURSQUARE_API;
+  console.log(`🔑 FOURSQUARE_API_KEY: ${process.env.FOURSQUARE_API_KEY}`);
+  const foursquareApiKey = process.env.FOURSQUARE_API_KEY;
 
   if (!foursquareApiKey) {
     console.log('⚠️ Foursquare API key not configured, using mock data');
-    console.log('FOURSQUARE_API is undefined');
+    console.log('FOURSQUARE_API_KEY is undefined');
     return null;
   }
 
@@ -208,6 +173,59 @@ async function fetchFoursquareRestaurants(latitude, longitude, radius = 5, limit
     }
   } catch (error) {
     console.error('❌ Foursquare API error:', error);
+    return null;
+  }
+}
+
+// Foursquare Place Details
+async function fetchFoursquareRestaurantDetails(fsq_id) {
+  const foursquareApiKey = process.env.FOURSQUARE_API_KEY;
+  if (!foursquareApiKey) {
+    console.log('⚠️ Foursquare API key not configured.');
+    return null;
+  }
+
+  try {
+    // Add fields parameter to get more details
+    const foursquareUrl = `https://api.foursquare.com/v3/places/${fsq_id}?fields=fsq_id,name,description,categories,rating,stats,price,geocodes,location,tel,website,hours,photos`;
+    const foursquareResponse = await fetch(foursquareUrl, {
+      headers: {
+        'Authorization': foursquareApiKey,
+        'Accept': 'application/json'
+      }
+    });
+
+    if (foursquareResponse.ok) {
+      const placeDetails = await foursquareResponse.json();
+      
+      const restaurant = {
+        id: placeDetails.fsq_id,
+        name: placeDetails.name,
+        description: placeDetails.description,
+        cuisine_type: placeDetails.categories?.map(c => c.name).join(', '),
+        rating: placeDetails.rating ? (placeDetails.rating / 2).toFixed(1) : null, // Foursquare rating is out of 10
+        review_count: placeDetails.stats?.total_ratings,
+        price_range: placeDetails.price,
+        latitude: placeDetails.geocodes?.main?.latitude,
+        longitude: placeDetails.geocodes?.main?.longitude,
+        address: placeDetails.location?.formatted_address,
+        phone: placeDetails.tel,
+        website: placeDetails.website,
+        hours: placeDetails.hours?.display,
+        features: placeDetails.categories?.map(cat => cat.name),
+        images: placeDetails.photos?.map(p => `${p.prefix}original${p.suffix}`),
+        platform: 'foursquare',
+        source: 'foursquare_api',
+        fsq_id: placeDetails.fsq_id,
+        last_updated: new Date().toISOString()
+      };
+      return restaurant;
+    } else {
+      console.warn(`⚠️ Foursquare Place Details API request failed with status: ${foursquareResponse.status}`);
+      return null;
+    }
+  } catch (error) {
+    console.error('❌ Foursquare Place Details API error:', error);
     return null;
   }
 }
@@ -335,23 +353,19 @@ app.get('/restaurants/featured', async (req, res) => {
     
     console.log('🌟 Fetching featured restaurants');
     
-    // Generate mock featured restaurants
-    const featuredRestaurants = generateNearbyRestaurants(
+    // Fetch featured restaurants from Foursquare API
+    const featuredRestaurants = await fetchFoursquareRestaurants(
       parseFloat(latitude) || 13.7563,
       parseFloat(longitude) || 100.5018,
-      5  // Limit to 5 featured restaurants
-    ).map(restaurant => ({
-      ...restaurant,
-      featured: true,
-      promotion: 'Featured on BiteBase',
-      highlight: 'Exclusive menu items'
-    }));
+      5, // radius in km
+      5 // limit to 5
+    );
 
     res.status(200).json({
       success: true,
       data: {
-        restaurants: featuredRestaurants,
-        total: featuredRestaurants.length
+        restaurants: featuredRestaurants || [],
+        total: featuredRestaurants ? featuredRestaurants.length : 0
       },
       meta: {
         timestamp: new Date().toISOString()
@@ -374,28 +388,28 @@ app.get('/restaurants/:id', async (req, res) => {
   try {
     const { id } = req.params;
     
-    // Generate mock restaurant details
-    const restaurant = {
-      id: id,
-      name: `Restaurant ${id.replace('mock_', '')}`,
-      cuisine_type: 'Thai',
-      rating: 4.2,
-      review_count: 156,
-      price_range: 2,
-      latitude: 13.7563,
-      longitude: 100.5018,
-      address: '123 Mock Street, Bangkok',
-      phone: '+66-2-123-4567',
-      website: 'https://restaurant.example.com',
-      hours: '11:00-22:00',
-      features: ['dine_in', 'takeout', 'delivery']
-    };
+    const restaurant = await fetchFoursquareRestaurantDetails(id);
+
+    if (!restaurant) {
+      return res.status(404).json({
+        success: false,
+        message: 'Restaurant not found'
+      });
+    }
+
+    // Fetch similar restaurants as well
+    const similar_restaurants = await fetchFoursquareRestaurants(
+        restaurant.latitude,
+        restaurant.longitude,
+        5, // 5km radius
+        5 // limit 5
+    );
 
     res.status(200).json({
       success: true,
       data: {
         restaurant,
-        similar_restaurants: generateNearbyRestaurants(13.7563, 100.5018, 3)
+        similar_restaurants: similar_restaurants ? similar_restaurants.filter(r => r.id !== id) : []
       },
       meta: {
         timestamp: new Date().toISOString()
@@ -504,11 +518,10 @@ app.post('/restaurants/search/realtime', async (req, res) => {
       attempts++;
     }
 
-    // If still no results, use mock data
+    // If still no results, we will not use mock data.
     if (restaurants.length === 0) {
-      console.log('📝 Using mock data for real-time search');
-      restaurants = generateMockRestaurants(latitude, longitude, limit);
-      searchVia = 'mock_data';
+      console.log('📝 No results found from Foursquare, and no mock data fallback.');
+      searchVia = 'foursquare_api_no_results';
     }
 
     // Categorize restaurants by proximity zones
@@ -642,9 +655,8 @@ app.post('/user/location/stream', async (req, res) => {
         nearbyRestaurants = foursquareRestaurants;
         searchVia = 'foursquare_streaming';
       } else {
-        console.log('📝 Using mock data for location streaming');
-        nearbyRestaurants = generateNearbyRestaurants(latitude, longitude, radius, limit);
-        searchVia = 'mock_streaming';
+        console.log('📝 No results from Foursquare for location streaming, and no mock data fallback.');
+        searchVia = 'foursquare_streaming__no_results';
       }
     }
 
@@ -730,7 +742,7 @@ app.listen(PORT, '0.0.0.0', () => {
   console.log(`🚀 BiteBase Express.js Backend running on port ${PORT}`);
   console.log(`🌐 Environment: ${process.env.NODE_ENV || 'development'}`);
   console.log(`🔗 Backend URL: http://0.0.0.0:${PORT}`);
-  console.log(`🤖 API Status: Operational with mock data`);
+  console.log(`🤖 API Status: Operational with Foursquare API`);
 });
 
 // Export for Vercel

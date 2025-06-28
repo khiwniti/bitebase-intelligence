@@ -40,6 +40,7 @@ export interface Restaurant {
   reviews?: any[];
   menu_items?: MenuItem[];
   avg_rating?: number;
+  similar_restaurants?: Restaurant[];
 }
 
 export interface MenuItem {
@@ -193,7 +194,21 @@ class ApiClient {
   }
 
   async getRestaurantById(id: string): Promise<ApiResponse<Restaurant>> {
-    return this.request(`/restaurants/${id}`);
+    const response = await this.request<{ data: { restaurant: Restaurant, similar_restaurants: Restaurant[] } }>(`/restaurants/${id}`);
+    if (response.error || !response.data?.data) {
+      return {
+        error: response.error || 'Failed to fetch restaurant',
+        status: response.status,
+      };
+    }
+    // Combine the data
+    const restaurantData = response.data.data.restaurant;
+    restaurantData.similar_restaurants = response.data.data.similar_restaurants;
+
+    return {
+      data: restaurantData,
+      status: response.status,
+    };
   }
 
   async searchRestaurantsByLocation(

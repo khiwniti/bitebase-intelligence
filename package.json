@@ -3,7 +3,7 @@
   "private": true,
   "description": "BiteBase Intelligence - Unified monorepo for frontend and backend applications",
   "scripts": {
-    "dev": "yarn workspace bitebase-frontend dev & yarn workspace bitebase-backend dev",
+    "dev": "concurrently \"yarn --cwd apps/backend start\" \"yarn --cwd apps/frontend dev\"",
     "start:dev": "concurrently \"yarn --cwd apps/backend start\" \"yarn --cwd apps/frontend dev\""
   },
   "devDependencies": {
