@@ -491,18 +491,25 @@ export function useLocationBasedRestaurants() {
           last_search: new Date().toISOString()
         });
       } else {
+        // If API returns no data (empty array or null)
         if (FEATURES.ENABLE_REAL_DATA) {
-          setRestaurants(response.data || []);
+          setRestaurants(response.data || []); // Set to empty array if null/undefined
+          if (response.error) setError(response.error); // Preserve error from response if any
         } else {
-          console.warn('⚠️ No restaurants found, using demo data');
+          console.warn('⚠️ No restaurants found and real data disabled, using demo data');
           setRestaurants(getDemoRestaurants(lat, lng));
         }
       }
     } catch (err) {
       console.error('❌ Error fetching restaurants:', err);
-      setError('Failed to fetch nearby restaurants');
-      // Load demo data as fallback
-      setRestaurants(getDemoRestaurants(lat, lng));
+      const errorMsg = err instanceof Error ? err.message : 'Failed to fetch nearby restaurants';
+      setError(errorMsg);
+      if (FEATURES.ENABLE_REAL_DATA) {
+        setRestaurants([]); // Set to empty array on error if real data is enabled
+      } else {
+        console.warn('⚠️ Error fetching restaurants and real data disabled, using demo data');
+        setRestaurants(getDemoRestaurants(lat, lng));
+      }
     } finally {
       setLoading(false);
     }
@@ -647,8 +654,14 @@ export function useLocationBasedRestaurants() {
         }
       } catch (fallbackErr) {
         console.error('Fallback search also failed:', fallbackErr);
-        setError('Failed to fetch nearby restaurants');
-        setRestaurants(getDemoRestaurants(lat, lng));
+        const errorMsg = fallbackErr instanceof Error ? fallbackErr.message : 'Failed to fetch nearby restaurants';
+        setError(errorMsg);
+        if (FEATURES.ENABLE_REAL_DATA) {
+          setRestaurants([]);
+        } else {
+          console.warn('⚠️ Fallback search failed and real data disabled, using demo data');
+          setRestaurants(getDemoRestaurants(lat, lng));
+        }
       }
     } finally {
       setLoading(false);
@@ -729,8 +742,14 @@ export function useLocationBasedRestaurants() {
         }
       } catch (fallbackErr) {
         console.error('Fallback search also failed:', fallbackErr);
-        setError('Failed to fetch nearby restaurants');
-        setRestaurants(getDemoRestaurants(lat, lng));
+        const errorMsg = fallbackErr instanceof Error ? fallbackErr.message : 'Failed to fetch nearby restaurants';
+        setError(errorMsg);
+        if (FEATURES.ENABLE_REAL_DATA) {
+          setRestaurants([]);
+        } else {
+          console.warn('⚠️ Fallback search failed (buffer) and real data disabled, using demo data');
+          setRestaurants(getDemoRestaurants(lat, lng));
+        }
       }
     } finally {
       setLoading(false);

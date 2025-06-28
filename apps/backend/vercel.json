@@ -1,0 +1,19 @@
+{
+  "version": 2,
+  "name": "bitebase-api",
+  "builds": [
+    {
+      "src": "index.js",
+      "use": "@vercel/node"
+    }
+  ],
+  "rewrites": [
+    {
+      "source": "/(.*)",
+      "destination": "/index.js"
+    }
+  ],
+  "env": {
+    "NODE_ENV": "production"
+  }
+}
