@@ -1,22 +1,22 @@
-const createNextIntlPlugin = require('next-intl/plugin');
+const createNextIntlPlugin = require("next-intl/plugin");
 
-const withNextIntl = createNextIntlPlugin('./i18n/request.ts');
+const withNextIntl = createNextIntlPlugin("./i18n/request.ts");
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: false,
   distDir: ".next",
   trailingSlash: false,
-  output: 'standalone',
+  output: "standalone",
   images: {
     unoptimized: true,
   },
-  
+
   // Server configuration for development
   experimental: {
     // Removed deprecated serverComponentsExternalPackages
   },
-  
+
   // Production-ready headers for security and CORS
   async headers() {
     return [
@@ -25,8 +25,21 @@ const nextConfig = {
         headers: [
           {
             key: "X-Frame-Options",
-            value: "ALLOWALL",
+            value: "SAMEORIGIN",
           },
+          {
+            key: "X-Content-Type-Options",
+            value: "nosniff",
+          },
+          {
+            key: "Referrer-Policy",
+            value: "strict-origin-when-cross-origin",
+          },
+        ],
+      },
+      {
+        source: "/api/(.*)",
+        headers: [
           {
             key: "Access-Control-Allow-Origin",
             value: "*",
@@ -37,7 +50,7 @@ const nextConfig = {
           },
           {
             key: "Access-Control-Allow-Headers",
-            value: "Content-Type, Authorization",
+            value: "Content-Type, Authorization, X-Requested-With",
           },
         ],
       },
@@ -88,7 +101,7 @@ const nextConfig = {
     "@firebase/auth",
     "@firebase/app",
     "@firebase/firestore",
-  ]
+  ],
 };
 
 module.exports = withNextIntl(nextConfig);

@@ -2,15 +2,14 @@
 
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { markUserAsFirstTime, clearUserSessionData } from "../utils/tourUtils";
+import {
+  authService,
+  User as AuthUser,
+  AuthResponse,
+} from "../lib/auth-service";
 
-// Custom User interface to match our backend
-interface User {
-  id: number;
-  email: string;
-  role: string;
-  name?: string;
-  uid?: string; // For compatibility with existing code
-}
+// Use the production User interface from auth service
+type User = AuthUser;
 
 interface AuthContextType {
   user: User | null;
@@ -42,43 +41,29 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const [mounted, setMounted] = useState(false);
 
   // Backend API base URL
-  const API_BASE = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://api.bitebase.app';
+  const API_BASE =
+    process.env.NEXT_PUBLIC_BACKEND_URL || "https://api.bitebase.app";
 
-  // Check for existing session on mount
+  // Check for existing session on mount using production auth service
   useEffect(() => {
     const checkAuth = async () => {
-      const token = localStorage.getItem("bitebase_token");
-      if (token) {
-        try {
-          const response = await fetch(`${API_BASE}/auth/me`, {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          });
+      try {
+        const { user, error } = await authService.verifySession();
 
-          if (response.ok) {
-            const userData = await response.json();
-            if (userData && userData.id && userData.email && userData.role) {
-              setUser({
-                id: userData.id,
-                email: userData.email,
-                role: userData.role,
-                name: userData.name || '',
-                uid: userData.id.toString(),
-              });
-            } else {
-              localStorage.removeItem("bitebase_token");
-            }
-          } else {
-            localStorage.removeItem("bitebase_token");
-          }
-        } catch (error) {
-          console.error("Auth check failed:", error);
-          localStorage.removeItem("bitebase_token");
+        if (user) {
+          setUser({
+            ...user,
+            uid: user.id.toString(), // For compatibility
+          });
+        } else if (error) {
+          console.warn("Session verification failed:", error);
         }
+      } catch (error) {
+        console.error("Auth check failed:", error);
+      } finally {
+        setLoading(false);
+        setMounted(true);
       }
-      setLoading(false);
-      setMounted(true);
     };
 
     checkAuth();
@@ -89,109 +74,48 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const signIn = async (email: string, password: string) => {
     setLoading(true);
     try {
-      // Demo login for testing - bypass backend
-      if (email === 'demo@bitebase.com' && password === 'demo123') {
-        const demoUser = {
-          id: 1,
-          email: 'demo@bitebase.com',
-          role: 'user',
-          name: 'Demo User',
-          uid: '1',
-        };
-        
-        // Store demo token
-        localStorage.setItem("bitebase_token", "demo_token_123");
-        document.cookie = `auth_token=demo_token_123; path=/; max-age=${7 * 24 * 60 * 60}`;
-        document.cookie = `user_role=user; path=/; max-age=${7 * 24 * 60 * 60}`;
-        
-        setUser(demoUser);
-        setLoading(false);
-        return;
-      }
+      const result = await authService.signIn(email, password);
 
-      const response = await fetch(`${API_BASE}/users/login`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ email, password }),
-      });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || "Login failed");
-      }
-
-      const data = await response.json();
-
-      if (data && data.success && data.data && data.data.session && data.data.user) {
-        const { user, session } = data.data;
-        // Store token in localStorage and cookie
-        localStorage.setItem("bitebase_token", session.token);
-        document.cookie = `auth_token=${session.token}; path=/; max-age=${7 * 24 * 60 * 60}`; // 7 days
-        document.cookie = `user_role=${user.role}; path=/; max-age=${7 * 24 * 60 * 60}`; // 7 days
-
-        // Set user
+      if (result.success && result.data) {
         setUser({
-          id: user.id,
-          email: user.email,
-          role: user.role,
-          name: `${user.first_name} ${user.last_name}`.trim(),
-          uid: user.id.toString(),
+          ...result.data.user,
+          uid: result.data.user.id.toString(), // For compatibility
         });
       } else {
-        throw new Error(data.message || "Invalid response data from server");
+        throw new Error(result.error || "Login failed");
       }
-
-      setLoading(false);
     } catch (error) {
-      setLoading(false);
       throw error;
+    } finally {
+      setLoading(false);
     }
   };
 
   const signUp = async (email: string, password: string, userData?: any) => {
     setLoading(true);
     try {
-      const response = await fetch(`${API_BASE}/users`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          email,
-          password,
-          first_name:
-            userData?.firstName || userData?.name || email.split("@")[0],
-          last_name: userData?.lastName || "User",
-          phone: userData?.phone || "",
-        }),
+      const result = await authService.signUp(email, password, {
+        firstName: userData?.firstName || userData?.name || email.split("@")[0],
+        lastName: userData?.lastName || "User",
+        phone: userData?.phone || "",
+        company: userData?.company || "",
       });
 
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || "Registration failed");
-      }
+      if (result.success && result.data) {
+        setUser({
+          ...result.data.user,
+          uid: result.data.user.id.toString(), // For compatibility
+        });
 
-      const data = await response.json();
-
-      if (data && data.success && data.data && data.data.user) {
-        const { user } = data.data;
-        
-        // For user creation, we need to log them in separately since we don't return a session token
-        // Let's automatically sign them in after successful registration
-        await signIn(email, password);
-        
         // Mark as first-time user for tour
         markUserAsFirstTime();
       } else {
-        throw new Error(data.message || "Invalid response data from server");
+        throw new Error(result.error || "Registration failed");
       }
-      
-      setLoading(false);
     } catch (error) {
-      setLoading(false);
       throw error;
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -218,72 +142,56 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const signInWithGoogleToken = async (token: string) => {
     setLoading(true);
     try {
-      const response = await fetch(`${API_BASE}/auth/google`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ token }),
-      });
+      const result = await authService.signInWithGoogle(token);
 
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || "Google authentication failed");
-      }
-
-      const data = await response.json();
-
-      if (data && data.token && data.user && data.user.id && data.user.email && data.user.role) {
-        // Store token
-        localStorage.setItem("bitebase_token", data.token);
-
-        // Set user
+      if (result.success && result.data) {
         setUser({
-          id: data.user.id,
-          email: data.user.email,
-          role: data.user.role,
-          name: data.user.name || '',
-          uid: data.user.id.toString(),
+          ...result.data.user,
+          uid: result.data.user.id.toString(), // For compatibility
         });
 
-        if (data.isNewUser) {
+        // For new users, mark as first-time for tour
+        // Note: This would need to be returned from the backend
+        // For now, assume new users based on account creation date
+        const isNewUser =
+          new Date(result.data.user.created_at || "").getTime() >
+          Date.now() - 24 * 60 * 60 * 1000;
+
+        if (isNewUser) {
           markUserAsFirstTime();
         }
 
-        setLoading(false);
-        return { isNewUser: data.isNewUser || false };
+        return { isNewUser };
       } else {
-        throw new Error("Invalid response data from server");
+        throw new Error(result.error || "Google authentication failed");
       }
     } catch (error) {
-      setLoading(false);
       throw error;
+    } finally {
+      setLoading(false);
     }
   };
 
   const logout = async () => {
     setLoading(true);
     try {
-      // Clear token and user data
-      localStorage.removeItem("bitebase_token");
-      
-      // Clear cookies
-      document.cookie = 'auth_token=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT;';
-      document.cookie = 'user_role=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT;';
-      
+      await authService.signOut();
       setUser(null);
 
       // Clear user session data on logout
       clearUserSessionData();
-      setLoading(false);
 
       // Redirect to auth page after logout
-      if (typeof window !== 'undefined') {
-        window.location.href = '/auth';
+      if (typeof window !== "undefined") {
+        window.location.href = "/auth";
       }
     } catch (error) {
+      console.error("Logout error:", error);
+      // Even if logout request fails, clear local state
+      setUser(null);
+      clearUserSessionData();
+    } finally {
       setLoading(false);
-      throw error;
     }
   };
 

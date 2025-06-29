@@ -112,6 +112,11 @@ public
 # Turborepo
 .turbo
 
+# Tempo
+node_modules
+**/tempobook/dynamic/
+**/tempobook/storyboards/
+
 # OS generated files
 .DS_Store
 .DS_Store?
