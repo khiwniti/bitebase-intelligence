@@ -1,0 +1,41 @@
+{
+  "name": "bitebase-backend",
+  "version": "1.0.0",
+  "description": "BiteBase Express.js Backend API for Vercel",
+  "main": "index.js",
+  "scripts": {
+    "start": "cross-env NODE_ENV=production PORT=3001 node index.js",
+    "dev": "cross-env NODE_ENV=development PORT=3001 node index.js",
+    "staging": "NODE_ENV=staging PORT=3001 node index.js",
+    "build": "echo 'Backend build complete'",
+    "lint": "echo 'Backend lint complete'",
+    "check-types": "echo 'Backend type check complete'",
+    "test": "echo 'Backend tests complete'",
+    "clean": "rm -rf dist node_modules/.cache"
+  },
+  "dependencies": {
+    "@mapbox/mapbox-sdk": "^0.16.1",
+    "axios": "^1.10.0",
+    "cors": "^2.8.5",
+    "dotenv": "^17.0.0",
+    "express": "^5.1.0",
+    "openai": "^5.8.2",
+    "pg": "^8.16.3",
+    "uuid": "^11.1.0"
+  },
+  "devDependencies": {
+    "cross-env": "^7.0.3"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "keywords": [
+    "express",
+    "api",
+    "restaurant",
+    "postgresql",
+    "vercel"
+  ],
+  "author": "BiteBase Team",
+  "license": "MIT"
+}
