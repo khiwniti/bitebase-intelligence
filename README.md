@@ -44,24 +44,28 @@ yarn build
 # Development mode (both frontend and backend)
 yarn dev
 
-# Staging mode (both frontend and backend)
-yarn staging:all
+# Build all applications
+yarn build
 
-# Production mode (both frontend and backend)
-yarn start:all
+# Start all applications in production mode
+yarn start
+
+# Run staging environment
+yarn staging
 ```
 
-### Run Individual Applications
+### Individual Application Commands
 ```bash
-# Frontend only
-yarn dev:frontend      # Development
-yarn staging:frontend  # Staging
-yarn start:frontend    # Production
+# Frontend only (from apps/frontend)
+cd apps/frontend
+yarn dev          # Development
+yarn build        # Build
+yarn start        # Production
 
-# Backend only
-yarn dev:backend       # Development
-yarn staging:backend   # Staging
-yarn start:backend     # Production
+# Backend only (from apps/backend)
+cd apps/backend
+yarn dev          # Development
+yarn start        # Production
 ```
 
 ### Other Commands
@@ -75,17 +79,11 @@ yarn check-types
 # Testing
 yarn test
 
-# Code formatting
-yarn format
-
 # Clean build artifacts
 yarn clean
 
-# Install all dependencies
-yarn install:all
-
-# Clean everything including node_modules
-yarn clean:all
+# Legacy development command (concurrently)
+yarn start:dev
 ```
 
 ## 🌍 Environment Configuration
@@ -108,14 +106,17 @@ yarn clean:all
 ## 📦 Applications
 
 ### Frontend (`apps/frontend`)
-- **Framework**: Next.js 15
+- **Framework**: Next.js 15.3.4
+- **UI Library**: Radix UI + Tailwind CSS
 - **Port**: 12000 (dev), 12001 (staging)
-- **Features**: Restaurant intelligence platform UI
+- **Features**: Restaurant intelligence platform UI with modern React components
 
 ### Backend (`apps/backend`)
-- **Framework**: Express.js
+- **Framework**: Express.js 5.1.0
+- **Database**: PostgreSQL
+- **AI Integration**: OpenAI API
 - **Port**: 3001
-- **Features**: REST API for restaurant data and AI intelligence
+- **Features**: REST API for restaurant data, geospatial queries, and AI intelligence
 
 ## 🔧 Turborepo Configuration
 
