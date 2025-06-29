@@ -554,7 +554,7 @@ export default function KitchenOperationsPage() {
                   <div className="text-center p-4 border rounded-lg">
                     <div className="text-2xl font-bold text-green-600">{metrics?.wastePercentage}%</div>
                     <div className="text-sm text-gray-600">Food Waste</div>
-                    <div className="text-xs text-gray-500">Target: <5%</div>
+                    <div className="text-xs text-gray-500">Target: &lt;5%</div>
                   </div>
 
                   <div className="text-center p-4 border rounded-lg">
